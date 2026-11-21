@@ -33,19 +33,37 @@ Target coverage defaults to **90%** (`alpha=0.1`).
 
 ## Quick start
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e .
+**Do not run this from a broken Anaconda `base` env.** If you see
+`Library not loaded: @rpath/liblapack.3.dylib` when importing `torch`, that is a
+conda/PyTorch install problem — use a clean project venv instead:
 
-# smoke run
+```bash
+cd uncertainty-aware-forecasting
+
+# Option A: use the existing project venv (recommended)
+source .venv/bin/activate
 python scripts/run_experiments.py --fast
 
-# full run (default config)
+# Option B: recreate the venv from scratch
+deactivate 2>/dev/null || true
+rm -rf .venv
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install -e ".[ ]" 2>/dev/null || pip install -e .
+pip install pytest
+python scripts/run_experiments.py --fast
 python scripts/run_experiments.py
-
-# tests
 pytest -q
+```
+
+If you specifically want conda:
+
+```bash
+conda create -n ua-forecast python=3.11 -y
+conda activate ua-forecast
+pip install -e .
+python scripts/run_experiments.py --fast
 ```
 
 Outputs:

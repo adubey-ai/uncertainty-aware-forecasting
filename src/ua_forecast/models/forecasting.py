@@ -9,13 +9,25 @@ from torch.utils.data import DataLoader, TensorDataset
 
 
 class PointLSTM(nn.Module):
-    def __init__(self, lookback: int, hidden: int = 64, n_layers: int = 2):
+    def __init__(
+        self,
+        lookback: int,
+        hidden: int = 64,
+        n_layers: int = 2,
+        dropout: float = 0.0,
+    ):
         super().__init__()
-        self.lstm = nn.LSTM(1, hidden, num_layers=n_layers, batch_first=True)
+        self.lookback = lookback
+        self.lstm = nn.LSTM(
+            1,
+            hidden,
+            num_layers=n_layers,
+            batch_first=True,
+            dropout=dropout if n_layers > 1 else 0.0,
+        )
         self.head = nn.Linear(hidden, 1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x: (B, L)
         out, _ = self.lstm(x.unsqueeze(-1))
         return self.head(out[:, -1, :]).squeeze(-1)
 
@@ -23,9 +35,22 @@ class PointLSTM(nn.Module):
 class GaussianLSTM(nn.Module):
     """Probabilistic LSTM predicting mean and log-std."""
 
-    def __init__(self, lookback: int, hidden: int = 64, n_layers: int = 2):
+    def __init__(
+        self,
+        lookback: int,
+        hidden: int = 64,
+        n_layers: int = 2,
+        dropout: float = 0.0,
+    ):
         super().__init__()
-        self.lstm = nn.LSTM(1, hidden, num_layers=n_layers, batch_first=True)
+        self.lookback = lookback
+        self.lstm = nn.LSTM(
+            1,
+            hidden,
+            num_layers=n_layers,
+            batch_first=True,
+            dropout=dropout if n_layers > 1 else 0.0,
+        )
         self.head = nn.Linear(hidden, 2)
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -45,10 +70,18 @@ class QuantileLSTM(nn.Module):
         hidden: int = 64,
         n_layers: int = 2,
         quantiles: tuple[float, ...] = (0.05, 0.5, 0.95),
+        dropout: float = 0.0,
     ):
         super().__init__()
+        self.lookback = lookback
         self.quantiles = quantiles
-        self.lstm = nn.LSTM(1, hidden, num_layers=n_layers, batch_first=True)
+        self.lstm = nn.LSTM(
+            1,
+            hidden,
+            num_layers=n_layers,
+            batch_first=True,
+            dropout=dropout if n_layers > 1 else 0.0,
+        )
         self.head = nn.Linear(hidden, len(quantiles))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -80,10 +113,13 @@ def train_model(
     lr: float = 1e-3,
     device: str | None = None,
     quantiles: tuple[float, ...] = (0.05, 0.5, 0.95),
+    patience: int = 8,
+    grad_clip: float = 1.0,
+    weight_decay: float = 1e-5,
 ) -> dict:
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
-    opt = torch.optim.Adam(model.parameters(), lr=lr)
+    opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
     train_loader = DataLoader(
         TensorDataset(torch.from_numpy(x_train), torch.from_numpy(y_train)),
@@ -96,6 +132,7 @@ def train_model(
     history = {"train_loss": [], "val_loss": []}
     best_state = None
     best_val = float("inf")
+    bad_epochs = 0
 
     for _ in range(epochs):
         model.train()
@@ -116,6 +153,8 @@ def train_model(
             else:
                 raise ValueError(kind)
             loss.backward()
+            if grad_clip is not None and grad_clip > 0:
+                nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
             opt.step()
             total += float(loss.item()) * len(xb)
             n += len(xb)
@@ -133,9 +172,14 @@ def train_model(
 
         history["train_loss"].append(train_loss)
         history["val_loss"].append(val_loss)
-        if val_loss < best_val:
+        if val_loss < best_val - 1e-6:
             best_val = val_loss
             best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+            bad_epochs = 0
+        else:
+            bad_epochs += 1
+            if patience and bad_epochs >= patience:
+                break
 
     if best_state is not None:
         model.load_state_dict(best_state)

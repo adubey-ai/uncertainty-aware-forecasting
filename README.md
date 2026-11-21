@@ -4,102 +4,84 @@
 
 Research question: *How can forecasting systems produce calibrated uncertainty estimates under regime shifts and distribution shift?*
 
-This repository compares:
+This repository studies **calibrated sequential prediction intervals** when exchangeability fails — comparing probabilistic deep models, classical GARCH, and conformal wrappers (split, frozen-window, **EnbPI**, **ACI**, **CQR**) on synthetic hardness ladders, finance-like returns, and real equity returns with crisis holdouts.
 
-1. **Deep forecasting baselines** — point LSTM  
-2. **Probabilistic models** — Gaussian LSTM (NLL) and quantile LSTM  
-3. **Conformal-prediction wrappers** — split conformal and rolling residual conformal  
+## Methods
 
-on **synthetic regime-switching** and **finance-like** non-stationary series.
+| Family | Method | What it does |
+|---|---|---|
+| Point + CP | Split conformal | Absolute residual quantile on validation (fixed) |
+| Point + CP | Frozen-window CP | Last-`W` val residuals only (offline baseline; not EnbPI) |
+| Point + CP | **EnbPI** | Sliding residual buffer **updated online** on the test stream |
+| Point + CP | **ACI** | Online \(\alpha_t\) adaptation from coverage feedback |
+| Probabilistic | Gaussian LSTM | NLL mean/variance + analytic Gaussian intervals |
+| Probabilistic | Quantile LSTM | Pinball 5%/50%/95% intervals |
+| Probabilistic + CP | **CQR** | Conformalized quantile regression (asymmetric scores) |
+| Classical | Historical mean + CP | Rolling mean with online residual conformal |
+| Classical | **GARCH(1,1) + CP** | Parametric vol recursion + conformalized standardized residuals |
 
-## Method
+## Data
 
-| Component | Description |
-|---|---|
-| Data | Piecewise AR(1) with abrupt mean/vol switches; finance-like cumulative returns with volatility regimes |
-| Split | Strictly chronological train / val / test (no shuffle) |
-| Point + CP | LSTM point forecast + split / rolling conformal intervals |
-| Probabilistic | Gaussian predictive intervals; pinball quantile intervals (5%/50%/95%) |
-| OOD stress | Coverage evaluated on the highest-volatility regime in the test window |
+1. **Synthetic regime-switching AR** — abrupt mean/AR/vol switches  
+2. **Gradual hardness ladder** — same DGP with linear parameter transitions  
+3. **Finance-like returns** — discrete vol regimes + optional leverage  
+4. **Real returns (SPY)** — cached daily log-returns; crisis masks for COVID (2020-Q1) and 2022 vol spike  
+
+All generators are seed-deterministic. Real data prefers `yfinance`, then local parquet cache, then an offline SPY-like seed.
 
 ## Evaluation
 
-- Empirical **coverage** (PICP)  
-- **Mean interval width** / sharpness  
-- **Calibration error** = \|coverage − target\|  
-- **Regime-conditional coverage** (distribution-shift diagnostic)  
+- Coverage (PICP), mean width, calibration error  
+- **Winkler** interval score; **CRPS** / **NLL** (Gaussian); quantile CRPS proxy  
+- Under/over-coverage rates  
+- Regime-conditional + **post-switch** coverage  
+- **Coverage-over-time** and ACI \(\alpha_t\) paths  
+- Multi-seed mean ± stderr (`configs/paper.yaml`)
 
 Target coverage defaults to **90%** (`alpha=0.1`).
 
 ## Quick start
 
-**Do not run this from a broken Anaconda `base` env.** If you see
-`Library not loaded: @rpath/liblapack.3.dylib` when importing `torch`, that is a
-conda/PyTorch install problem — use a clean project venv instead:
+**Prefer the project `.venv`** (avoid broken conda `liblapack` torch installs):
 
 ```bash
 cd uncertainty-aware-forecasting
-
-# Option A: use the existing project venv (recommended)
 source .venv/bin/activate
-python scripts/run_experiments.py --fast
+pip install -e ".[finance,dev]"
 
-# Option B: recreate the venv from scratch
-deactivate 2>/dev/null || true
-rm -rf .venv
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -U pip
-pip install -e ".[ ]" 2>/dev/null || pip install -e .
-pip install pytest
-python scripts/run_experiments.py --fast
-python scripts/run_experiments.py
+# Smoke
+python scripts/run_experiments.py --config configs/fast.yaml
+
+# Full single-seed (synthetic + finance-like + gradual)
+python scripts/run_experiments.py --config configs/default.yaml
+
+# Paper protocol (5 seeds + real SPY)
+python scripts/run_experiments.py --config configs/paper.yaml
+
 pytest -q
-```
-
-If you specifically want conda:
-
-```bash
-conda create -n ua-forecast python=3.11 -y
-conda activate ua-forecast
-pip install -e .
-python scripts/run_experiments.py --fast
 ```
 
 Outputs:
 
-- `results/metrics.json` — numeric tables  
+- `results/metrics.json` — tables (aggregated if multi-seed)  
+- `results/metrics_per_seed.json` — raw seeds (paper mode)  
 - `results/SUMMARY.md` — markdown summary  
-- `results/figures/*.png` — interval plots and coverage–width trade-offs  
-- `reports/technical_report.md` — short write-up  
-
-## Preliminary results
-
-Run `python scripts/run_experiments.py` to regenerate. Typical pattern on regime-switching data:
-
-- Split conformal often lands near target coverage with wider intervals.  
-- Gaussian LSTM can be sharper but under-cover under regime shift.  
-- Quantile LSTM is competitive when pinball training is stable.  
-- Stress-regime (OOD) coverage usually degrades vs pooled test coverage — the core non-stationarity challenge.
-
-Exact numbers are experiment outputs in `results/`.
+- `results/figures/*.png` — intervals, trade-offs, coverage-over-time, ACI path  
+- `reports/technical_report.md` — write-up  
 
 ## Project layout
 
 ```
 src/ua_forecast/
-  data/        # synthetic + finance-like generators
-  models/      # point / Gaussian / quantile LSTMs
-  conformal/   # split + rolling conformal wrappers
-  eval/        # coverage, width, calibration, regime metrics
+  data/        # synthetic hardness ladder + real returns cache
+  models/      # LSTM forecasters + GARCH / historical baselines
+  conformal/   # split, frozen, EnbPI, ACI, CQR
+  eval/        # coverage, Winkler, CRPS, temporal diagnostics
+configs/{fast,default,paper}.yaml
 scripts/run_experiments.py
-configs/default.yaml
-reports/technical_report.md
 ```
 
 ## Citation
-
-If you use this codebase, please cite the repository:
 
 ```
 Adarsh Dubey. Uncertainty-Aware Forecasting for Non-Stationary Time Series (2026).

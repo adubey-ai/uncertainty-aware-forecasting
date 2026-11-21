@@ -1,4 +1,13 @@
-from .forecasting import PointLSTM, GaussianLSTM, QuantileLSTM, train_model, predict_point, predict_gaussian, predict_quantile
+from .baselines import GARCHConformal, HistoricalMeanConformal
+from .forecasting import (
+    GaussianLSTM,
+    PointLSTM,
+    QuantileLSTM,
+    predict_gaussian,
+    predict_point,
+    predict_quantile,
+    train_model,
+)
 
 __all__ = [
     "PointLSTM",
@@ -8,4 +17,6 @@ __all__ = [
     "predict_point",
     "predict_gaussian",
     "predict_quantile",
+    "HistoricalMeanConformal",
+    "GARCHConformal",
 ]

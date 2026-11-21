@@ -1,4 +1,19 @@
-from .metrics import coverage, mean_width, sharpness, calibration_error, summarize_intervals, regime_coverage
+from .metrics import (
+    aggregate_seed_metrics,
+    calibration_error,
+    coverage,
+    crps_gaussian,
+    gaussian_nll,
+    mean_width,
+    regime_coverage,
+    rolling_coverage,
+    sharpness,
+    shift_onset_coverage,
+    summarize_intervals,
+    under_coverage_rate,
+    over_coverage_rate,
+    winkler_score,
+)
 
 __all__ = [
     "coverage",
@@ -7,4 +22,12 @@ __all__ = [
     "calibration_error",
     "summarize_intervals",
     "regime_coverage",
+    "winkler_score",
+    "gaussian_nll",
+    "crps_gaussian",
+    "rolling_coverage",
+    "shift_onset_coverage",
+    "under_coverage_rate",
+    "over_coverage_rate",
+    "aggregate_seed_metrics",
 ]

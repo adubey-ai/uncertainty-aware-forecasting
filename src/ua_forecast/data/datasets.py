@@ -1,4 +1,4 @@
-"""Synthetic regime-switching and finance-like time series."""
+"""Synthetic regime-switching, finance-like, and hardness-ladder series."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ class SeriesBundle:
     y: np.ndarray
     regimes: np.ndarray
     name: str
+    meta: dict | None = None
 
 
 def make_regime_switching_ar(
@@ -19,8 +20,15 @@ def make_regime_switching_ar(
     n_regimes: int = 3,
     switch_prob: float = 0.01,
     seed: int = 42,
+    gradual: bool = False,
+    transition_len: int = 25,
 ) -> SeriesBundle:
-    """Piecewise AR(1) with abrupt mean/volatility regime switches."""
+    """
+    Piecewise AR(1) with abrupt or gradual mean/volatility regime switches.
+
+    If gradual=True, parameters linearly interpolate over `transition_len`
+    steps after each switch (hardness ladder: easier local stationarity).
+    """
     rng = np.random.default_rng(seed)
     means = np.array([-0.4, 0.0, 0.55])[:n_regimes]
     phis = np.array([0.2, 0.7, -0.3])[:n_regimes]
@@ -32,19 +40,42 @@ def make_regime_switching_ar(
     regimes[0] = r
     y[0] = means[r] + sigmas[r] * rng.standard_normal()
 
+    # transition state
+    r_prev = r
+    trans_left = 0
+
     for t in range(1, n):
         if rng.random() < switch_prob:
+            r_prev = r
             r = int(rng.integers(0, n_regimes))
+            trans_left = transition_len if gradual else 0
         regimes[t] = r
-        y[t] = means[r] + phis[r] * y[t - 1] + sigmas[r] * rng.standard_normal()
 
-    return SeriesBundle(y=y, regimes=regimes, name="synthetic_regime_ar")
+        if gradual and trans_left > 0:
+            w = 1.0 - (trans_left / max(transition_len, 1))
+            mean_t = (1 - w) * means[r_prev] + w * means[r]
+            phi_t = (1 - w) * phis[r_prev] + w * phis[r]
+            sig_t = (1 - w) * sigmas[r_prev] + w * sigmas[r]
+            trans_left -= 1
+        else:
+            mean_t, phi_t, sig_t = means[r], phis[r], sigmas[r]
+
+        y[t] = mean_t + phi_t * y[t - 1] + sig_t * rng.standard_normal()
+
+    name = "synthetic_regime_ar_gradual" if gradual else "synthetic_regime_ar"
+    return SeriesBundle(
+        y=y,
+        regimes=regimes,
+        name=name,
+        meta={"gradual": gradual, "switch_prob": switch_prob, "n_regimes": n_regimes},
+    )
 
 
 def make_finance_like_returns(
     n: int = 3000,
     vol_regimes: list[float] | None = None,
     seed: int = 42,
+    leverage: bool = True,
 ) -> SeriesBundle:
     """
     Log-return style series with stochastic volatility regime switches.
@@ -60,14 +91,18 @@ def make_finance_like_returns(
         if rng.random() < 0.008:
             r = int(rng.integers(0, n_regimes))
         regimes[t] = r
-        # mild leverage: negative returns bump next-step vol
         shock = rng.standard_normal()
         rets[t] = vols[r] * shock
-        if shock < -1.5 and r < n_regimes - 1 and rng.random() < 0.3:
+        if leverage and shock < -1.5 and r < n_regimes - 1 and rng.random() < 0.3:
             r = min(n_regimes - 1, r + 1)
-    # Forecast returns (approximately locally stationary within regimes), not integrated price.
     y = (rets - rets.mean()) / (rets.std() + 1e-8)
-    return SeriesBundle(y=y.astype(float), regimes=regimes, name="finance_like_returns")
+    name = "finance_like_returns" if leverage else "finance_like_returns_noleverage"
+    return SeriesBundle(
+        y=y.astype(float),
+        regimes=regimes,
+        name=name,
+        meta={"leverage": leverage, "vol_regimes": vols.tolist()},
+    )
 
 
 def window_dataset(
@@ -109,7 +144,6 @@ def temporal_split(
     for name, sl in slices.items():
         out[name] = {"x": x[sl], "y": y[sl]}
         if regimes is not None:
-            # regime aligned to window end index
             aligned = regimes[lookback : lookback + n]
             out[name]["regimes"] = aligned[sl]
     return out

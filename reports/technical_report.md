@@ -1,91 +1,105 @@
 # Uncertainty-Aware Forecasting for Non-Stationary Time Series
 
 **Author:** Adarsh Dubey  
-**Status:** Preliminary technical report (2026)  
+**Status:** Research technical report (2026)  
 **Code:** https://github.com/adubey-ai/uncertainty-aware-forecasting  
 
 ## 1. Research question
 
-How can forecasting systems produce **calibrated uncertainty estimates** under **regime shifts** and **distribution shift**?
+How can forecasting systems produce **calibrated uncertainty estimates** when **regime shifts** break the exchangeability assumptions behind classical conformal prediction?
 
-Point forecasts alone are insufficient for sequential decision-making in finance and other non-stationary domains. We need intervals whose empirical coverage remains close to a nominal level when the data-generating process switches volatility or mean dynamics.
+Point forecasts are insufficient for sequential decisions in finance. We need intervals whose empirical coverage stays near a nominal level (here 90%) under volatility and mean non-stationarity — and we need methods that **adapt online** when fixed calibration sets go stale.
 
-## 2. Method
+## 2. Related methods (implemented)
 
-### 2.1 Data
+| Method | Role in this study |
+|---|---|
+| Split conformal | Exchangeability baseline (fixed val residual quantile) |
+| Frozen-window CP | Offline rolling residual quantile (no test updates) |
+| **EnbPI** | Sliding residual buffer updated after each test step |
+| **ACI** | Online \(\alpha_t\) from coverage feedback (Gibbs & Candès) |
+| Gaussian / Quantile LSTM | Probabilistic deep baselines |
+| **CQR** | Conformalized quantile regression (asymmetric scores) |
+| Historical mean + CP | Classical nonparametric baseline |
+| **GARCH(1,1) + CP** | Finance-standard vol model with conformalized scores |
 
-1. **Synthetic regime-switching AR(1):** three regimes with distinct means, autoregressive coefficients, and noise scales; switches occur with fixed probability.  
-2. **Finance-like series:** cumulative normalized log-return process with discrete volatility regimes and mild leverage-like transitions.
+## 3. Protocol
 
-Both generators are deterministic given a seed (no external market download required for reproducibility).
+### 3.1 Data
 
-### 2.2 Models
+1. **Synthetic abrupt regime AR** — piecewise AR(1) with mean/φ/σ switches.  
+2. **Gradual hardness ladder** — same DGP with linear parameter transitions.  
+3. **Finance-like returns** — discrete vol regimes + leverage.  
+4. **Real SPY log-returns** (cached; `yfinance` when online) with COVID/2022 crisis labels; high-\(|y|\) stress fallback on the chronological test window.
 
-| Family | Model | Uncertainty |
-|---|---|---|
-| Deep baseline | Point LSTM | Split conformal; rolling residual conformal |
-| Probabilistic | Gaussian LSTM | Analytic Gaussian predictive interval |
-| Probabilistic | Quantile LSTM | Pinball loss for 5%/50%/95% |
+Chronological 60/20/20 train/val/test. Conformal calibration uses validation only; EnbPI/ACI update using revealed test labels in the sequential evaluation protocol (standard for online CP).
 
-Training uses chronological train/validation splits. Conformal methods calibrate exclusively on validation residuals (no test leakage).
+### 3.2 Metrics
 
-### 2.3 Evaluation protocol
+Coverage, mean width, calibration error, **Winkler** score, Gaussian **NLL/CRPS**, under/over-coverage, regime / post-switch coverage, coverage-over-time, ACI \(\alpha_t\) path. Multi-seed: **5 seeds** (`configs/paper.yaml`), mean ± stderr.
 
-For nominal coverage \(1-\alpha\) (default 90%):
+## 4. Results (paper protocol)
 
-- Empirical coverage  
-- Mean interval width (sharpness)  
-- Calibration error \(\lvert \widehat{\mathrm{cov}} - (1-\alpha)\rvert\)  
-- Regime-conditional coverage on the test window  
-- OOD stress: metrics restricted to the highest-volatility regime in test  
+Target coverage: 90%. Tables below are mean ± stderr across seeds from `results/SUMMARY.md`.
 
-## 3. Results (from latest `results/metrics.json`)
+### 4.1 Synthetic abrupt regimes
 
-Target coverage: 90%.
+| Method | Coverage | Mean width | Winkler | Cal. error |
+|---|---:|---:|---:|---:|
+| Split CP | 0.850±0.020 | 1.356 | 2.157 | 0.050 |
+| Frozen-window CP | 0.908±0.026 | 1.683 | 2.154 | 0.051 |
+| **EnbPI** | 0.894±0.012 | 1.580 | 2.049 | 0.018 |
+| **ACI** | **0.899±0.001** | 1.605 | 2.047 | **0.002** |
+| Gaussian LSTM | 0.908±0.006 | 1.559 | 1.950 | 0.012 |
+| Quantile LSTM | 0.890±0.011 | 1.499 | 1.963 | 0.021 |
+| **CQR** | 0.898±0.010 | 1.539 | 1.957 | 0.014 |
+| Historical CP | 0.898±0.008 | 1.924 | 2.461 | 0.012 |
+| GARCH+CP | 0.906±0.003 | 2.215 | 2.654 | 0.006 |
 
-### synthetic_regime_ar
+**Takeaway:** Under abrupt switches, fixed split CP under-covers (85%). ACI locks onto the target (89.9%, cal. err 0.002) with low seed variance; EnbPI recovers most of the gap.
 
-| Method | Coverage | Mean width | Cal. error |
-|---|---:|---:|---:|
-| `point_lstm_split_conformal` | 0.933 | 1.689 | 0.033 |
-| `point_lstm_rolling_conformal` | 0.903 | 1.525 | 0.003 |
-| `gaussian_lstm` | 0.926 | 1.389 | 0.026 |
-| `quantile_lstm` | 0.917 | 1.332 | 0.017 |
+### 4.2 High-volatility OOD slice (abrupt synthetic, last seed)
 
-OOD stress regime id=2:
+On the highest-vol regime in test, split CP coverage collapses to **66.7%**; EnbPI **79.3%**; ACI **88.7%**. Adaptive conformal is the difference between a broken and a usable interval under stress.
 
-- `point_lstm_split_conformal` coverage=0.894, width=1.689
-- `gaussian_lstm` coverage=0.913, width=1.868
-- `quantile_lstm` coverage=0.913, width=1.835
+### 4.3 Finance-like returns
 
-### finance_like_returns
+ACI again hits **0.899±0.001** coverage (cal. err 0.002). GARCH+CP is well calibrated (0.900±0.002) with competitive Winkler. CQR improves raw quantile calibration vs pinball-only intervals.
 
-| Method | Coverage | Mean width | Cal. error |
-|---|---:|---:|---:|
-| `point_lstm_split_conformal` | 0.914 | 3.811 | 0.014 |
-| `point_lstm_rolling_conformal` | 0.914 | 3.811 | 0.014 |
-| `gaussian_lstm` | 0.913 | 3.703 | 0.013 |
-| `quantile_lstm` | 0.897 | 3.550 | 0.003 |
+### 4.4 Real SPY returns
 
-OOD stress regime id=2:
+| Method | Coverage | Mean width | Winkler | Cal. error |
+|---|---:|---:|---:|---:|
+| Split CP | 0.931±0.001 | 3.170 | 4.370 | 0.031 |
+| EnbPI | 0.884±0.000 | 2.743 | 4.423 | 0.016 |
+| ACI | 0.890±0.000 | 2.848 | **4.041** | 0.010 |
+| CQR | 0.928±0.001 | 2.828 | 3.771 | 0.028 |
+| GARCH+CP | **0.900±0.000** | 2.859 | 4.111 | **0.000** |
+| Quantile LSTM | 0.917±0.003 | 2.718 | **3.747** | 0.017 |
 
-- `point_lstm_split_conformal` coverage=0.905, width=3.811
-- `gaussian_lstm` coverage=0.903, width=3.848
-- `quantile_lstm` coverage=0.886, width=3.653
+**Takeaway:** On real equity returns, GARCH+CP hits the nominal level exactly across seeds; ACI is near-target with the best Winkler among conformal point-forecast wrappers; raw split CP over-covers with wider bands.
 
-## 4. Limitations and next steps
+## 5. Failure analysis under non-stationarity
 
-- Current conformal scores use absolute residuals (symmetric intervals).  
-- No online adaptation of conformal quantiles on the test stream (intentional offline protocol).  
-- Finance-like generator is stylized; next: public market series + regime labels / realized-vol proxies.  
-- Planned extensions: asymmetric conformal scores, ACI / EnbPI variants, and conformalized quantile regression with explicit under/over-coverage reporting.
+1. **Exchangeability break:** Split CP’s validation quantile is stale after a regime switch → systematic under-coverage on stress regimes.  
+2. **Frozen ≠ EnbPI:** Freezing the residual buffer (previous “rolling” baseline) does not adapt; true EnbPI updates after each step and moves coverage toward the target.  
+3. **ACI tracks the gap:** \(\alpha_t\) paths (see `results/figures/*_aci_alpha.png`) expand intervals after misses and shrink after runs of coverage — visible as stable rolling PICP in `*_coverage_time.png`.  
+4. **Sharpness vs validity:** Gaussian/quantile LSTMs can be sharper (lower Winkler) but need CQR or ACI-style wrappers when calibration drifts.
 
-## 5. Reproducibility
+## 6. Limitations and next steps
+
+- Horizon-1 univariate only; multi-step / path conformal remains open.  
+- Crisis calendar labels on SPY often fall outside the final chronological test window; we report high-\(|y|\) stress as a complementary OOD slice.  
+- Single backbone family (LSTM); method claims are intended to be backbone-agnostic.  
+- Planned: AgACI, locally weighted / regime-weighted conformal, decision-aware evaluation (risk constraints).
+
+## 7. Reproducibility
 
 ```bash
-pip install -e .
-python scripts/run_experiments.py --config configs/default.yaml
+pip install -e ".[finance,dev]"
+python scripts/run_experiments.py --config configs/fast.yaml    # smoke
+python scripts/run_experiments.py --config configs/paper.yaml   # 5-seed + real
 pytest -q
 ```
 
-All randomness is controlled by `seed` in `configs/default.yaml`.
+Configs: `configs/{fast,default,paper}.yaml`. Cached SPY parquet under `data/cache/` enables offline runs.

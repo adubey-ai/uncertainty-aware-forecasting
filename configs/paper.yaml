@@ -1,0 +1,35 @@
+seed: 42
+seeds: [0, 1, 2, 3, 4]
+horizon: 1
+lookback: 32
+train_frac: 0.6
+val_frac: 0.2
+alpha: 0.1
+epochs: 40
+batch_size: 64
+lr: 0.001
+hidden: 64
+n_layers: 2
+dropout: 0.1
+patience: 8
+grad_clip: 1.0
+weight_decay: 0.00001
+cp_window: 200
+aci_gamma: 0.05
+include_gradual: true
+include_real: true
+
+synthetic:
+  n: 4000
+  regimes: 3
+  switch_prob: 0.01
+  transition_len: 25
+
+financial:
+  n: 3000
+  vol_regimes: [0.008, 0.02, 0.045]
+  leverage: true
+
+real:
+  ticker: SPY
+  start: "2015-01-01"

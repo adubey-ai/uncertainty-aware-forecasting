@@ -1,0 +1,168 @@
+{
+  "synthetic_regime_ar": {
+    "dataset": "synthetic_regime_ar",
+    "n": 4000,
+    "point_lstm_split_conformal": {
+      "coverage": 0.9333333333333333,
+      "mean_width": 1.6886826753616333,
+      "sharpness": 1.6886826753616333,
+      "calibration_error": 0.033333333333333326,
+      "target_coverage": 0.9,
+      "n": 795,
+      "regime_coverage": {
+        "0": 0.9203539823008849,
+        "1": 1.0,
+        "2": 0.893719806763285
+      }
+    },
+    "point_lstm_rolling_conformal": {
+      "coverage": 0.9031446540880503,
+      "mean_width": 1.5249643325805664,
+      "sharpness": 1.5249643325805664,
+      "calibration_error": 0.0031446540880503138,
+      "target_coverage": 0.9,
+      "n": 795,
+      "regime_coverage": {
+        "0": 0.9026548672566371,
+        "1": 1.0,
+        "2": 0.8405797101449275
+      }
+    },
+    "gaussian_lstm": {
+      "coverage": 0.9257861635220126,
+      "mean_width": 1.3885840095979185,
+      "sharpness": 1.3885840095979185,
+      "calibration_error": 0.025786163522012573,
+      "target_coverage": 0.9,
+      "n": 795,
+      "regime_coverage": {
+        "0": 0.8938053097345132,
+        "1": 0.9589552238805971,
+        "2": 0.9130434782608695
+      }
+    },
+    "quantile_lstm": {
+      "coverage": 0.9169811320754717,
+      "mean_width": 1.3320081233978271,
+      "sharpness": 1.3320081233978271,
+      "calibration_error": 0.016981132075471694,
+      "target_coverage": 0.9,
+      "n": 795,
+      "regime_coverage": {
+        "0": 0.8584070796460177,
+        "1": 0.9477611940298507,
+        "2": 0.9130434782608695
+      }
+    },
+    "ood_stress_regime": {
+      "regime_id": 2,
+      "point_lstm_split_conformal": {
+        "coverage": 0.893719806763285,
+        "mean_width": 1.6886825561523438,
+        "sharpness": 1.6886825561523438,
+        "calibration_error": 0.006280193236715026,
+        "target_coverage": 0.9,
+        "n": 414
+      },
+      "gaussian_lstm": {
+        "coverage": 0.9130434782608695,
+        "mean_width": 1.8682752277329122,
+        "sharpness": 1.8682752277329122,
+        "calibration_error": 0.01304347826086949,
+        "target_coverage": 0.9,
+        "n": 414
+      },
+      "quantile_lstm": {
+        "coverage": 0.9130434782608695,
+        "mean_width": 1.8345177173614502,
+        "sharpness": 1.8345177173614502,
+        "calibration_error": 0.01304347826086949,
+        "target_coverage": 0.9,
+        "n": 414
+      }
+    }
+  },
+  "finance_like_returns": {
+    "dataset": "finance_like_returns",
+    "n": 3000,
+    "point_lstm_split_conformal": {
+      "coverage": 0.9142857142857143,
+      "mean_width": 3.810699462890625,
+      "sharpness": 3.810699462890625,
+      "calibration_error": 0.014285714285714235,
+      "target_coverage": 0.9,
+      "n": 595,
+      "regime_coverage": {
+        "0": 1.0,
+        "1": 0.9696969696969697,
+        "2": 0.9053030303030303
+      }
+    },
+    "point_lstm_rolling_conformal": {
+      "coverage": 0.9142857142857143,
+      "mean_width": 3.810699462890625,
+      "sharpness": 3.810699462890625,
+      "calibration_error": 0.014285714285714235,
+      "target_coverage": 0.9,
+      "n": 595,
+      "regime_coverage": {
+        "0": 1.0,
+        "1": 0.9696969696969697,
+        "2": 0.9053030303030303
+      }
+    },
+    "gaussian_lstm": {
+      "coverage": 0.9126050420168067,
+      "mean_width": 3.7031882962805835,
+      "sharpness": 3.7031882962805835,
+      "calibration_error": 0.012605042016806678,
+      "target_coverage": 0.9,
+      "n": 595,
+      "regime_coverage": {
+        "0": 1.0,
+        "1": 0.9696969696969697,
+        "2": 0.9034090909090909
+      }
+    },
+    "quantile_lstm": {
+      "coverage": 0.8974789915966387,
+      "mean_width": 3.5496373176574707,
+      "sharpness": 3.5496373176574707,
+      "calibration_error": 0.0025210084033613356,
+      "target_coverage": 0.9,
+      "n": 595,
+      "regime_coverage": {
+        "0": 1.0,
+        "1": 0.9696969696969697,
+        "2": 0.8863636363636364
+      }
+    },
+    "ood_stress_regime": {
+      "regime_id": 2,
+      "point_lstm_split_conformal": {
+        "coverage": 0.9053030303030303,
+        "mean_width": 3.810699462890625,
+        "sharpness": 3.810699462890625,
+        "calibration_error": 0.005303030303030254,
+        "target_coverage": 0.9,
+        "n": 528
+      },
+      "gaussian_lstm": {
+        "coverage": 0.9034090909090909,
+        "mean_width": 3.8483904424869224,
+        "sharpness": 3.8483904424869224,
+        "calibration_error": 0.003409090909090917,
+        "target_coverage": 0.9,
+        "n": 528
+      },
+      "quantile_lstm": {
+        "coverage": 0.8863636363636364,
+        "mean_width": 3.6529417037963867,
+        "sharpness": 3.6529417037963867,
+        "calibration_error": 0.013636363636363669,
+        "target_coverage": 0.9,
+        "n": 528
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+seed: 42
+horizon: 1
+lookback: 32
+train_frac: 0.6
+val_frac: 0.2
+alpha: 0.1   # target miscoverage (90% intervals)
+epochs: 40
+batch_size: 64
+lr: 0.001
+hidden: 64
+n_layers: 2
+
+synthetic:
+  n: 4000
+  regimes: 3
+  switch_prob: 0.01
+
+financial:
+  # Deterministic synthetic "finance-like" series if no market download is available.
+  n: 3000
+  vol_regimes: [0.008, 0.02, 0.045]
